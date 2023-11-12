@@ -5,7 +5,17 @@ def isTerminal(state):
     return True
 
 def getChildren(state):
-    return 0
+    children = []
+    for i in range(7):
+        tmp = [row[:] for row in state]
+        for j in range(6):
+            if tmp[i][j] == 0:
+                tmp[i][j] = 2
+                children.append(tmp.copy())
+    return children
+
+
+
 def minimax(state, k, IsMaximizing):
     if( k == 0 or isTerminal(state)):
         return Evaluate(state)
