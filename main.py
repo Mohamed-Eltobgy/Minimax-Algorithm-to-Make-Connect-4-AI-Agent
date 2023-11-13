@@ -1,5 +1,9 @@
+import time
+
 import pygame
 
+def convert_to_tuple(array_2d):
+    return tuple(tuple(row) for row in array_2d)
 
 
 
@@ -77,109 +81,61 @@ def center_column_control(board, player):
 
 
 def Evaluate_V2(board):
-    AI = '2'
-    Player = '1'
-    ROWS = len(board)
-    COLUMNS = len(board[0])
+    AI, Player, Empty = '2', '1', '0'
+    ROWS, COLUMNS = len(board), len(board[0])
 
     score = 0
-    # Horizontal check
+    # Patterns to look for and their scores
+    patterns = {
+        (4, 0, 0): 1000,  # AI wins
+        (3, 0, 1): 700,   # AI is one step from winning
+        (2, 0, 2): 10,    # AI has a chance
+        (0, 3, 1): -710,  # Player is one step from winning
+        (0, 4, 0): -1000  # Player wins
+    }
+
+    # Horizontal, Vertical, Diagonal Down-right, Diagonal Up-right checks
     for row in range(ROWS):
-        for col in range(COLUMNS - 3):
-            count1 = 0
-            count2 = 0
-            count3 = 0
-            for i in range (4):
-                if board[row][col + i] == AI :
-                    count2+=1
-                elif board[row][col + i] == Player:
-                    count1+=1
-                elif board[row][col + i] == '0':
-                    count3 += 1
+        for col in range(COLUMNS):
+            if col <= COLUMNS - 4:
+                # Horizontal check
+                line = board[row][col:col+4]
+                ai_count = line.count(AI)
+                player_count = line.count(Player)
+                score += patterns.get((ai_count, player_count, 4 - ai_count - player_count), 0)
 
-            if(count2 == 4):
-                score+=1000
-            elif count2 == 3 and count3 == 1 :
-                score+=300
-            elif count2 == 2 and count3 == 2:
-                score +=10
-            elif count1 == 3 and count3 == 1:
-                score -=700
+            if row <= ROWS - 4:
+                # Vertical check
+                line = [board[row+i][col] for i in range(4)]
+                ai_count = line.count(AI)
+                player_count = line.count(Player)
+                score += patterns.get((ai_count, player_count, 4 - ai_count - player_count), 0)
 
-    # Vertical check
-    for col in range(COLUMNS):
-        for row in range(ROWS - 3):
-            count1 = 0
-            count2 = 0
-            count3 = 0
-            for i in range(4):
-                if board[row+i][col] == AI:
-                    count2 += 1
-                elif board[row+i][col] == Player:
-                    count1 += 1
-                elif board[row+i][col] == '0':
-                    count3 += 1
+                if col <= COLUMNS - 4:
+                    # Diagonal Down-right check
+                    line = [board[row+i][col+i] for i in range(4)]
+                    ai_count = line.count(AI)
+                    player_count = line.count(Player)
+                    score += patterns.get((ai_count, player_count, 4 - ai_count - player_count), 0)
 
-            if(count2 == 4):
-                score+=1000
-            elif count2 == 3 and count3 == 1 :
-                score+=300
-            elif count2 == 2 and count3 == 2:
-                score +=10
-            elif count1 == 3 and count3 == 1:
-                score -=700
+            if row >= 3 and col <= COLUMNS - 4:
+                # Diagonal Up-right check
+                line = [board[row-i][col+i] for i in range(4)]
+                ai_count = line.count(AI)
+                player_count = line.count(Player)
+                score += patterns.get((ai_count, player_count, 4 - ai_count - player_count), 0)
 
-    # Diagonal checks
-    # Down-right and Up-right
-    for row in range(ROWS - 3):
-        for col in range(COLUMNS - 3):
-            count1 = 0
-            count2 = 0
-            count3 = 0
-            for i in range(4):
-                if board[row+i][col + i] == AI:
-                    count2 += 1
-                elif board[row+i][col + i] == Player:
-                    count1 += 1
-                elif board[row+i][col + i] == '0':
-                    count3 += 1
-
-            if(count2 == 4):
-                score+=1000
-            elif count2 == 3 and count3 == 1 :
-                score+=300
-            elif count2 == 2 and count3 == 2:
-                score +=10
-            elif count1 == 3 and count3 == 1:
-                score -=700
-
-            count1 = 0
-            count2 = 0
-            count3 = 0
-            for i in range(4):
-                if board[row+3-i][col + i] == AI:
-                    count2 += 1
-                elif board[row+3-i][col + i] == Player:
-                    count1 += 1
-                elif board[row+3-i][col + i] == '0':
-                    count3 += 1
-
-            if(count2 == 4):
-                score+=1000
-            elif count2 == 3 and count3 == 1 :
-                score+=300
-            elif count2 == 2 and count3 == 2:
-                score +=10
-            elif count1 == 3 and count3 == 1:
-                score -=700
     return score
+
+
 def Evaluate(board):
-    #score = Evaluate_V2(board)
-    score = 0
-    score += count_connected_fours(board, '2') * 1000
-    score += center_column_control(board, '2') * 50
-    score += count_potential_fours(board,'2')*500
-    score -= count_potential_fours(board, '1') * 300
+    score = Evaluate_V2(board)
+    #score = 0
+    #score += count_connected_fours(board, '2') * 1000
+    score += center_column_control(board, '2') * 200
+    #score -= count_connected_fours(board, '1') * 1000
+    # score += count_potential_fours(board,'2')*500
+    # score -= count_potential_fours(board, '1') * 700
 
     return score
 
@@ -191,13 +147,17 @@ def isTerminal(state):
                 return False
     return True
 
-def getChildren(state):
+def getChildren(state,IsMaximizing):
+    if(IsMaximizing):
+        player = '2'
+    else:
+        player = '1'
     children = []
     for i in range(len(state[0])):
         tmp = [row[:] for row in state]
         for j in range(len(state)):
             if tmp[j][i] == '0':
-                tmp[j][i] = '2'
+                tmp[j][i] = player
                 children.append(tmp.copy())
                 break
     return children
@@ -218,6 +178,8 @@ def makeMove(board,col,player):
 def make_agent_move(board,depth):
     best_score = float('-inf')
     best_move = None
+    mpMax = {}
+    mpMin = {}
     for col in range(len(board[0])):
         if isValidMove(board,col):
             temp_board = [['0' for _ in range(len(board[0]))] for _ in range(len(board))]
@@ -226,7 +188,13 @@ def make_agent_move(board,depth):
                     temp_board[i][j] = board[i][j]
 
             temp_board = makeMove(temp_board,col,'2')
-            score = minimax(temp_board,depth,False)
+            tuple = convert_to_tuple(temp_board)
+            if(tuple in mpMax):
+                score = mpMax[tuple]
+            elif tuple in mpMin:
+                score = mpMin[tuple]
+            else:
+                score = minimax(temp_board,depth-1,False, mpMax,mpMin)
 
             if(score > best_score):
                 best_score = score
@@ -235,26 +203,41 @@ def make_agent_move(board,depth):
     return best_move
 
 
-def minimax(state, k, IsMaximizing):
-    print("Entered Minimax")
-    if( k <= 0 or isTerminal(state)):
-        return Evaluate(state)
-    print("H = ", k)
+def minimax(state, k, IsMaximizing, mpMax,mpMin):
+    #print("Entered Minimax")
+    if( k < 0 or isTerminal(state)):
+        score = Evaluate(state)
+        return score
+
+
+    tupleState = convert_to_tuple(state)
+
 
     if(IsMaximizing):
+        if tupleState in mpMax:
+            #print("Found in max")
+            return mpMax[tupleState]
+
         bestValue = float('-inf')
-        children = getChildren(state)
+        children = getChildren(state,IsMaximizing)
         for child in children:
-            value = minimax(child,k-1,False)
+            value = minimax(child,k-1,False,mpMax,mpMin)
             bestValue = max(value, bestValue)
+
+        mpMax[tupleState] = bestValue
         return bestValue
 
     else:
+        if tupleState in mpMin:
+            #print("found in Min")
+            return mpMin[tupleState]
         bestValue = float('inf')
-        children = getChildren(state)
+        children = getChildren(state,IsMaximizing)
         for child in children:
-            value = minimax(child,k-1,True)
+            value = minimax(child,k-1,True,mpMax,mpMin)
             bestValue = min(value, bestValue)
+
+        mpMin[tupleState] = bestValue
         return bestValue
 
 
@@ -290,7 +273,8 @@ def draw_board(board):
 # Main game loop
 def game_loop():
     board = [['0' for _ in range(COLUMNS)] for _ in range(ROWS)]
-    print(board)
+    #print(board)
+    AI_Counter = 0
 
 
     while True:
@@ -312,8 +296,12 @@ def game_loop():
         draw_board(board)
         pygame.display.update()
         if turn == 1 :
-            col = make_agent_move(board,1)
+            t1 = time.time()
+            col = make_agent_move(board,5)
             board = makeMove(board,col,'2')
+            t2 = time.time()
+            print("time = ",t2-t1)
+            AI_Counter+=1
             turn+=1
             turn%=2
             print("Player count = ", count_connected_fours(board, '1'))
@@ -352,6 +340,10 @@ game_loop()
 #          ['2','0','0','0','0','0','0'],
 #          ['0','0','0','0','0','0','0'],
 # ]
+# x = {}
+# x[convert_to_tuple(board)] = 5
+# print((1,2) in x)
+# print(minimax(board,1,True))
 #
 # print(count_potential_fours(board,'2'))
 #print(isTerminal(board))
