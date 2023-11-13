@@ -2,6 +2,8 @@ def Evaluate(state):
     return 0
 
 def isTerminal(state):
+    if state[0].count('0') == 0:
+        return False
     return True
 
 def getChildren(state):
