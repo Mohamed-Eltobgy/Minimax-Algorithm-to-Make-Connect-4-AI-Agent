@@ -2,6 +2,8 @@ import pygame
 
 
 
+
+
 def count_potential_fours(board, player):
     ROWS = len(board)
     COLUMNS = len(board[0])
@@ -72,13 +74,112 @@ def center_column_control(board, player):
     return sum(1 for row in range(ROWS) if board[row][CENTER_COLUMN] == player)
 
 
-def Evaluate(board):
-    score = 0
 
+
+def Evaluate_V2(board):
+    AI = '2'
+    Player = '1'
+    ROWS = len(board)
+    COLUMNS = len(board[0])
+
+    score = 0
+    # Horizontal check
+    for row in range(ROWS):
+        for col in range(COLUMNS - 3):
+            count1 = 0
+            count2 = 0
+            count3 = 0
+            for i in range (4):
+                if board[row][col + i] == AI :
+                    count2+=1
+                elif board[row][col + i] == Player:
+                    count1+=1
+                elif board[row][col + i] == '0':
+                    count3 += 1
+
+            if(count2 == 4):
+                score+=1000
+            elif count2 == 3 and count3 == 1 :
+                score+=300
+            elif count2 == 2 and count3 == 2:
+                score +=10
+            elif count1 == 3 and count3 == 1:
+                score -=700
+
+    # Vertical check
+    for col in range(COLUMNS):
+        for row in range(ROWS - 3):
+            count1 = 0
+            count2 = 0
+            count3 = 0
+            for i in range(4):
+                if board[row+i][col] == AI:
+                    count2 += 1
+                elif board[row+i][col] == Player:
+                    count1 += 1
+                elif board[row+i][col] == '0':
+                    count3 += 1
+
+            if(count2 == 4):
+                score+=1000
+            elif count2 == 3 and count3 == 1 :
+                score+=300
+            elif count2 == 2 and count3 == 2:
+                score +=10
+            elif count1 == 3 and count3 == 1:
+                score -=700
+
+    # Diagonal checks
+    # Down-right and Up-right
+    for row in range(ROWS - 3):
+        for col in range(COLUMNS - 3):
+            count1 = 0
+            count2 = 0
+            count3 = 0
+            for i in range(4):
+                if board[row+i][col + i] == AI:
+                    count2 += 1
+                elif board[row+i][col + i] == Player:
+                    count1 += 1
+                elif board[row+i][col + i] == '0':
+                    count3 += 1
+
+            if(count2 == 4):
+                score+=1000
+            elif count2 == 3 and count3 == 1 :
+                score+=300
+            elif count2 == 2 and count3 == 2:
+                score +=10
+            elif count1 == 3 and count3 == 1:
+                score -=700
+
+            count1 = 0
+            count2 = 0
+            count3 = 0
+            for i in range(4):
+                if board[row+3-i][col + i] == AI:
+                    count2 += 1
+                elif board[row+3-i][col + i] == Player:
+                    count1 += 1
+                elif board[row+3-i][col + i] == '0':
+                    count3 += 1
+
+            if(count2 == 4):
+                score+=1000
+            elif count2 == 3 and count3 == 1 :
+                score+=300
+            elif count2 == 2 and count3 == 2:
+                score +=10
+            elif count1 == 3 and count3 == 1:
+                score -=700
+    return score
+def Evaluate(board):
+    #score = Evaluate_V2(board)
+    score = 0
     score += count_connected_fours(board, '2') * 1000
-    score += center_column_control(board, '2') * 20
+    score += center_column_control(board, '2') * 50
     score += count_potential_fours(board,'2')*500
-    score -= count_potential_fours(board, '1') * 700
+    score -= count_potential_fours(board, '1') * 300
 
     return score
 
@@ -135,8 +236,10 @@ def make_agent_move(board,depth):
 
 
 def minimax(state, k, IsMaximizing):
-    if( k == 0 or isTerminal(state)):
+    print("Entered Minimax")
+    if( k <= 0 or isTerminal(state)):
         return Evaluate(state)
+    print("H = ", k)
 
     if(IsMaximizing):
         bestValue = float('-inf')
@@ -209,7 +312,7 @@ def game_loop():
         draw_board(board)
         pygame.display.update()
         if turn == 1 :
-            col = make_agent_move(board,3)
+            col = make_agent_move(board,1)
             board = makeMove(board,col,'2')
             turn+=1
             turn%=2
