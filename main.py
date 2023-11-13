@@ -141,10 +141,8 @@ def Evaluate(board):
 
 
 def isTerminal(state):
-    for i in range(len(state)):
-        for j in range(len(state[0])):
-            if(state[i][j] == '0'):
-                return False
+    if state[5].count('0') == 0 :
+        return False
     return True
 
 def getChildren(state,IsMaximizing):
