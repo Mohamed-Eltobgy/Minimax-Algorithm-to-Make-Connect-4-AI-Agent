@@ -12,60 +12,25 @@ def convert_to_tuple_alpha_beta(array_2d, alpha, beta):
     return (array_tuple, alpha, beta)
 
 
-def count_potential_fours(board, player):
-    ROWS = len(board)
-    COLUMNS = len(board[0])
-    potential_fours = 0
 
-    # Check horizontal potential fours
-    for r in range(ROWS):
-        for c in range(COLUMNS - 3):
-            window = [board[r][c + i] for i in range(4)]
-            if window.count(player) == 3 and window.count('0') == 1:
-                potential_fours += 1
-
-    # Check vertical potential fours
-    for c in range(COLUMNS):
-        for r in range(ROWS - 3):
-            window = [board[r + i][c] for i in range(4)]
-            if window.count(player) == 3 and window.count('0') == 1:
-                potential_fours += 1
-
-    # Check positively sloped diagonal potential fours
-    for r in range(ROWS - 3):
-        for c in range(COLUMNS - 3):
-            window = [board[r + i][c + i] for i in range(4)]
-            if window.count(player) == 3 and window.count('0') == 1:
-                potential_fours += 1
-
-    # Check negatively sloped diagonal potential fours
-    for r in range(3, ROWS):
-        for c in range(COLUMNS - 3):
-            window = [board[r - i][c + i] for i in range(4)]
-            if window.count(player) == 3 and window.count('0') == 1:
-                potential_fours += 1
-
-    return potential_fours
 
 
 def count_connected_fours(board, player):
     ROWS = len(board)
     COLUMNS = len(board[0])
     count = 0
-    # Horizontal check
+
     for row in range(ROWS):
         for col in range(COLUMNS - 3):
             if all(board[row][col + i] == player for i in range(4)):
                 count += 1
 
-    # Vertical check
+
     for col in range(COLUMNS):
         for row in range(ROWS - 3):
             if all(board[row + i][col] == player for i in range(4)):
                 count += 1
 
-    # Diagonal checks
-    # Down-right and Up-right
     for row in range(ROWS - 3):
         for col in range(COLUMNS - 3):
             if all(board[row + i][col + i] == player for i in range(4)):
@@ -76,10 +41,7 @@ def count_connected_fours(board, player):
     return count
 
 
-def center_column_control(board, player):
-    ROWS = len(board)
-    CENTER_COLUMN = len(board[0]) // 2
-    return sum(1 for row in range(ROWS) if board[row][CENTER_COLUMN] == player)
+
 
 
 def Evaluate_V2(board):
@@ -87,21 +49,20 @@ def Evaluate_V2(board):
     ROWS, COLUMNS = len(board), len(board[0])
 
     score = 0
-    # Patterns to look for and their scores
     patterns = {
         (4, 0, 0): 1000,  # AI wins
         (3, 0, 1): 700,  # AI is one step from winning
-        (2, 0, 2): 10,  # AI has a chance
-        (0, 3, 1): -710,  # Player is one step from winning
-        (0, 4, 0): -1000  # Player wins
+        (2, 0, 2): 30,  # AI has a chance
+        (0, 3, 1): -800,  # Player is one step from winning
+        (0, 4, 0): -1500  # Player wins
     }
 
     # Horizontal, Vertical, Diagonal Down-right, Diagonal Up-right checks
     for row in range(ROWS):
         if board[row][COLUMNS // 2] == AI:
-            score += 50
+            score += 30
         elif board[row][COLUMNS // 2] == Player:
-            score -= 20
+            score -= 50
         for col in range(COLUMNS):
             if col <= COLUMNS - 4:
                 # Horizontal check
@@ -135,16 +96,7 @@ def Evaluate_V2(board):
 
 
 def Evaluate(board):
-    score = Evaluate_V2(board)
-    # score = 0
-    # score += count_connected_fours(board, '2') * 1000
-    # score += center_column_control(board, '2') * 100
-    # score -= center_column_control(board,'1') * 100
-    # score -= count_connected_fours(board, '1') * 1000
-    # score += count_potential_fours(board,'2')*500
-    # score -= count_potential_fours(board, '1') * 700
-
-    return score
+    return Evaluate_V2(board)
 
 
 def isTerminal(state):
@@ -155,7 +107,7 @@ def isTerminal(state):
 
 
 def getChildren(state, IsMaximizing):
-    if (IsMaximizing):
+    if IsMaximizing:
         player = '2'
     else:
         player = '1'
@@ -173,7 +125,7 @@ def getChildren(state, IsMaximizing):
 
 
 def isValidMove(board, col):
-    if (board[len(board) - 1][col] != '0'):
+    if board[len(board) - 1][col] != '0':
         return False
 
     return True
@@ -181,7 +133,7 @@ def isValidMove(board, col):
 
 def makeMove(board, col, player):
     for i in range(len(board)):
-        if (board[i][col] == '0'):
+        if board[i][col] == '0':
             board[i][col] = player
             break
     return board
@@ -192,8 +144,8 @@ def make_agent_move(board, depth, alpha_beta):
     best_move = None
     mpMax = {}
     mpMin = {}
-    # alpha =  float('-inf')
-    for col in range(len(board[0])):
+    middle_col = len(board[0]) // 2
+    for col in range(middle_col,len(board[0])):
         if isValidMove(board, col):
             temp_board = [['0' for _ in range(len(board[0]))] for _ in range(len(board))]
             for i in range(len(board)):
@@ -201,24 +153,33 @@ def make_agent_move(board, depth, alpha_beta):
                     temp_board[i][j] = board[i][j]
 
             temp_board = makeMove(temp_board, col, '2')
-            # if not alpha_beta :
-            #     tuple = convert_to_tuple(temp_board)
-            # else:
-            #     tuple = convert_to_tuple_alpha_beta(temp_board,best_score,float('inf'))
-            # if tuple in mpMax :
-            #     score = mpMax[tuple]
-            # elif tuple in mpMin:
-            #     score = mpMin[tuple]
-            if 1:
-                if not alpha_beta:
-                    score = minimax(temp_board, depth - 1, False, mpMax, mpMin)
-                else:
-                    # mpMax = {}
-                    # mpMin = {}
-                    score = minimax_alpha_beta(temp_board, depth - 1, False, mpMax, mpMin, best_score, float('inf'))
-                    mpMax[tuple] = score
 
-            if (score > best_score):
+            if not alpha_beta:
+                score = minimax(temp_board, depth - 1, False, mpMax, mpMin)
+            else:
+                score = minimax_alpha_beta(temp_board, depth - 1, False, mpMax, mpMin, best_score, float('inf'))
+                mpMax[tuple] = score
+
+            if score > best_score:
+                best_score = score
+                best_move = col
+
+    for col in range(middle_col-1,-1,-1):
+        if isValidMove(board, col):
+            temp_board = [['0' for _ in range(len(board[0]))] for _ in range(len(board))]
+            for i in range(len(board)):
+                for j in range(len(board[0])):
+                    temp_board[i][j] = board[i][j]
+
+            temp_board = makeMove(temp_board, col, '2')
+
+            if not alpha_beta:
+                score = minimax(temp_board, depth - 1, False, mpMax, mpMin)
+            else:
+                score = minimax_alpha_beta(temp_board, depth - 1, False, mpMax, mpMin, best_score, float('inf'))
+                mpMax[tuple] = score
+
+            if score > best_score:
                 best_score = score
                 best_move = col
 
@@ -227,8 +188,7 @@ def make_agent_move(board, depth, alpha_beta):
 
 
 def minimax(state, k, IsMaximizing, mpMax, mpMin):
-    # print("Entered Minimax")
-    if (k < 0 or isTerminal(state)):
+    if k < 0 or isTerminal(state):
         score = Evaluate(state)
         return score
 
@@ -236,7 +196,6 @@ def minimax(state, k, IsMaximizing, mpMax, mpMin):
 
     if (IsMaximizing):
         if tupleState in mpMax:
-            # print("Found in max")
             return mpMax[tupleState]
 
         bestValue = float('-inf')
@@ -251,7 +210,6 @@ def minimax(state, k, IsMaximizing, mpMax, mpMin):
 
     else:
         if tupleState in mpMin:
-            # print("found in Min")
             return mpMin[tupleState]
         bestValue = float('inf')
         children = getChildren(state, IsMaximizing)
@@ -264,7 +222,6 @@ def minimax(state, k, IsMaximizing, mpMax, mpMin):
 
 
 def minimax_alpha_beta(state, k, IsMaximizing, mpMax, mpMin, alpha=float('-inf'), beta=float('inf')):
-    # Check for terminal condition or maximum depth
     if k < 0 or isTerminal(state):
         score = Evaluate(state)
         return score
@@ -283,7 +240,6 @@ def minimax_alpha_beta(state, k, IsMaximizing, mpMax, mpMin, alpha=float('-inf')
             bestValue = max(value, bestValue)
             alpha = max(alpha, bestValue)
 
-            # Alpha-beta pruning
             if beta <= alpha:
                 break
 
@@ -301,7 +257,6 @@ def minimax_alpha_beta(state, k, IsMaximizing, mpMax, mpMin, alpha=float('-inf')
             bestValue = min(value, bestValue)
             beta = min(beta, bestValue)
 
-            # Alpha-beta pruning
             if beta <= alpha:
                 break
 
@@ -313,18 +268,15 @@ def minimax_alpha_beta(state, k, IsMaximizing, mpMax, mpMin, alpha=float('-inf')
 def draw_board(board):
     for c in range(COLUMNS):
         for r in range(ROWS):
-            # Draw the blue rectangles for the board
+
             pygame.draw.rect(screen, (0, 0, 250), (c * SQUARE_SIZE, r * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE))
-            # Draw the white circles for empty slots
+
             pygame.draw.circle(screen, (0, 0, 0),
                                (int(c * SQUARE_SIZE + SQUARE_SIZE // 2), int(r * SQUARE_SIZE + SQUARE_SIZE // 2)),
                                RADIUS)
 
-    # Draw the pieces based on the current board state, from bottom to top
     for c in range(COLUMNS):
-        for r in range(ROWS):  # No need to reverse the order of rows
-            # Calculate the y position for the piece based on the row number
-            # Pieces need to be drawn from the bottom up, so we subtract the row number from ROWS - 1
+        for r in range(ROWS):
             piece_y = (ROWS - 1 - r) * SQUARE_SIZE + SQUARE_SIZE // 2
 
             if board[r][c] == '1':
@@ -338,8 +290,6 @@ def draw_board(board):
 # Main game loop
 def game_loop():
     board = [['0' for _ in range(COLUMNS)] for _ in range(ROWS)]
-    # print(board)
-    AI_Counter = 0
 
     while True:
         turn = 0
@@ -360,11 +310,10 @@ def game_loop():
         pygame.display.update()
         if turn == 1:
             t1 = time.time()
-            col = make_agent_move(board, 9, True)
+            col = make_agent_move(board, 8,True)
             board = makeMove(board, col, '2')
             t2 = time.time()
             print("time = ", t2 - t1)
-            AI_Counter += 1
             turn += 1
             turn %= 2
             print("Player count = ", count_connected_fours(board, '1'))
