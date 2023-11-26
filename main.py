@@ -2,6 +2,7 @@ import time
 
 import pygame
 
+cols = [3,4,2,1,5,0,6]
 
 def convert_to_tuple(array_2d):
     return tuple(tuple(row) for row in array_2d)
@@ -53,6 +54,7 @@ def Evaluate_V2(board):
         (4, 0, 0): 1000,  # AI wins
         (3, 0, 1): 700,  # AI is one step from winning
         (2, 0, 2): 30,  # AI has a chance
+        (0, 2, 2): -40,  # Player has a chance
         (0, 3, 1): -800,  # Player is one step from winning
         (0, 4, 0): -1500  # Player wins
     }
@@ -60,9 +62,9 @@ def Evaluate_V2(board):
     # Horizontal, Vertical, Diagonal Down-right, Diagonal Up-right checks
     for row in range(ROWS):
         if board[row][COLUMNS // 2] == AI:
-            score += 30
+            score += 15
         elif board[row][COLUMNS // 2] == Player:
-            score -= 50
+            score -= 20
         for col in range(COLUMNS):
             if col <= COLUMNS - 4:
                 # Horizontal check
@@ -107,12 +109,13 @@ def isTerminal(state):
 
 
 def getChildren(state, IsMaximizing):
+
     if IsMaximizing:
         player = '2'
     else:
         player = '1'
     children = []
-    for i in range(len(state[0])):
+    for i in cols:
         if not isValidMove(state,i):
             continue
         tmp = [row[:] for row in state]
@@ -144,8 +147,9 @@ def make_agent_move(board, depth, alpha_beta):
     best_move = None
     mpMax = {}
     mpMin = {}
-    middle_col = len(board[0]) // 2
-    for col in range(middle_col,len(board[0])):
+
+
+    for col in cols:
         if isValidMove(board, col):
             temp_board = [['0' for _ in range(len(board[0]))] for _ in range(len(board))]
             for i in range(len(board)):
@@ -164,24 +168,6 @@ def make_agent_move(board, depth, alpha_beta):
                 best_score = score
                 best_move = col
 
-    for col in range(middle_col-1,-1,-1):
-        if isValidMove(board, col):
-            temp_board = [['0' for _ in range(len(board[0]))] for _ in range(len(board))]
-            for i in range(len(board)):
-                for j in range(len(board[0])):
-                    temp_board[i][j] = board[i][j]
-
-            temp_board = makeMove(temp_board, col, '2')
-
-            if not alpha_beta:
-                score = minimax(temp_board, depth - 1, False, mpMax, mpMin)
-            else:
-                score = minimax_alpha_beta(temp_board, depth - 1, False, mpMax, mpMin, best_score, float('inf'))
-                mpMax[tuple] = score
-
-            if score > best_score:
-                best_score = score
-                best_move = col
 
     print("score = ", best_score)
     return best_move
@@ -230,6 +216,7 @@ def minimax_alpha_beta(state, k, IsMaximizing, mpMax, mpMin, alpha=float('-inf')
 
     if IsMaximizing:
         if tupleState in mpMax:
+
             return mpMax[tupleState]
 
         bestValue = float('-inf')
@@ -310,7 +297,7 @@ def game_loop():
         pygame.display.update()
         if turn == 1:
             t1 = time.time()
-            col = make_agent_move(board, 8,True)
+            col = make_agent_move(board, 10,True)
             board = makeMove(board, col, '2')
             t2 = time.time()
             print("time = ", t2 - t1)
