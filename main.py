@@ -1,3 +1,4 @@
+import threading
 import time
 import pygame
 import tkinter as tk
@@ -372,6 +373,7 @@ def visualize_tree(root):
     master = tk.Tk()
     master.title("Connect-4 Tree Visualization")
 
+
     # Increase the window size to better accommodate the tree
     window_width = 1600
     window_height = 1200
@@ -426,7 +428,8 @@ def game_loop():
             print("AI count = ", count_connected_fours(board, '2'))
             pygame.display.update()
             if show_tree:
-                visualize_tree(root)
+                visualization_thread = threading.Thread(target=visualize_tree, args=(root,))
+                visualization_thread.start()
 
     pygame.quit()
 
