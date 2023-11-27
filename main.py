@@ -1,5 +1,6 @@
 import time
-
+import tkinter as tk
+from tkinter import simpledialog
 import pygame
 
 cols = [3,4,2,1,5,0,6]
@@ -398,10 +399,20 @@ def visualize_board(board, width, height):
 
 
 # Main game loop
+def get_user_input():
+    root = tk.Tk()
+    root.withdraw()  # Hide the main tkinter window
+
+    depth = simpledialog.askinteger("Depth", "Enter the depth for AI search:")
+    use_pruning = simpledialog.askstring("Pruning", "Use pruning? (yes/no): ").lower() == 'yes'
+
+    return depth, use_pruning
+
 def game_loop():
     board = [['0' for _ in range(COLUMNS)] for _ in range(ROWS)]
     button_x, button_y = (WIDTH - button_width) / 2, HEIGHT - button_height - 10
 
+    get_user_input()
     while True:
         turn = 0
         for event in pygame.event.get():
