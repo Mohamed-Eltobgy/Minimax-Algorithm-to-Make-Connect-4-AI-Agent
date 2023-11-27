@@ -311,81 +311,77 @@ def Get_parameters_window():
 ##########
 
 ##########    TREE
-def draw_node(canvas, node, x, y, cell_size=15):
-    # Decrease cell_size to make the boards smaller
+def draw_node(canvas, node, x, y, cell_size=10):  # Reduced cell_size
     columns = len(node.state[0])
     rows = len(node.state)
     grid_width = columns * cell_size
     grid_height = rows * cell_size
 
-    # Starting coordinates for the grid to be centered on (x, y)
     start_x = x - grid_width // 2
     start_y = y - grid_height // 2
 
-    # Draw the Connect-4 state inside the node
     for i in range(rows):
         for j in range(columns):
             cell_x = start_x + j * cell_size
             cell_y = start_y + (rows - 1 - i) * cell_size
-            color = "white"  # Default color for empty cells
+            color = "white"
             if node.state[i][j] == '1':
                 color = "red"
             elif node.state[i][j] == '2':
                 color = "yellow"
-            # Draw the cell rectangle with the appropriate color
             canvas.create_rectangle(cell_x, cell_y, cell_x + cell_size, cell_y + cell_size, fill=color, outline='black')
 
-    # Print the score below the board
     score_text = f"Score: {node.value}" if node.value is not None else "Score: N/A"
-    canvas.create_text(x, start_y + grid_height + cell_size, text=score_text, font=('Helvetica', '10'), fill='black')
+    canvas.create_text(x, start_y + grid_height + 10, text=score_text, font=('Helvetica', '8'), fill='black')  # Adjusted text position and font size
 
-    return grid_width, grid_height + cell_size  # Include the space for the score in the total height
+    return start_x, start_y, start_x + grid_width, start_y + grid_height + 10
 
-
-
-
-def draw_tree(canvas, node, x, y, level_distance=200, sibling_distance=150, cell_size=20):
+def draw_tree(canvas, node, x, y, node_positions, level_distance=100, sibling_distance=100, cell_size=10):
     if not node:
         return
 
-    # Calculate the width and height of the node's grid to adjust spacing
-    columns = len(node.state[0])
-    rows = len(node.state)
-    node_width = columns * cell_size
-    node_height = rows * cell_size
+    node_bbox = draw_node(canvas, node, x, y, cell_size)
+    node_positions[node] = (node_bbox, node_positions.get(node, (None, False))[1])
 
-    # Draw the current node
-    draw_node(canvas, node, x, y, cell_size)
+    if node_positions[node][1]:
+        child_x = x - (len(node.children) - 1) * sibling_distance / 2
+        for child in node.children:
+            child_y = y + level_distance
+            canvas.create_line(x, y, child_x, child_y)
+            draw_tree(canvas, child, child_x, child_y, node_positions, level_distance, sibling_distance, cell_size)
+            child_x += sibling_distance
 
-    # Increase the horizontal space for child nodes based on the number of children
-    child_x = x - (len(node.children) - 1) * sibling_distance / 2
-    for child in node.children:
-        child_y = y + node_height + level_distance  # Increase the vertical space between levels
-        # Draw line to child
-        canvas.create_line(x, y + node_height / 2, child_x, child_y - node_height / 2)
-        # Draw child
-        draw_tree(canvas, child, child_x, child_y, level_distance, sibling_distance, cell_size)
-        child_x += sibling_distance
+def on_canvas_click(event, canvas, root, node_positions):
+    for node, (bbox, children_displayed) in node_positions.items():
+        if bbox[0] <= event.x <= bbox[2] and bbox[1] <= event.y <= bbox[3]:
+            node_positions[node] = (bbox, not children_displayed)
+            redraw_tree(canvas, root, node_positions)
+            break
 
-
+def redraw_tree(canvas, root, node_positions):
+    canvas.delete("all")
+    initial_x = canvas.winfo_reqwidth()  *3.5
+    draw_tree(canvas, root, initial_x, 50, node_positions)
 
 def visualize_tree(root):
     master = tk.Tk()
     master.title("Connect-4 Tree Visualization")
 
+    canvas = tk.Canvas(master)
+    canvas.pack(expand=tk.YES, fill=tk.BOTH)  # Make the canvas expand to fill the window
 
-    # Increase the window size to better accommodate the tree
-    window_width = 1600
-    window_height = 1200
-    canvas = tk.Canvas(master, width=window_width, height=window_height)
-    canvas.pack()
+    node_positions = {}
 
-    # Start drawing the tree from the middle of the canvas
-    initial_x = window_width // 2
-    initial_y = 50  # Starting a bit down from the top
-    draw_tree(canvas, root, initial_x, initial_y)
+    initial_x = canvas.winfo_reqwidth() *3.5
+    draw_tree(canvas, root, initial_x, 50, node_positions)
+
+    canvas.bind("<Button-1>", lambda event: on_canvas_click(event, canvas, root, node_positions))
 
     master.mainloop()
+
+
+
+
 
 
 ###########
