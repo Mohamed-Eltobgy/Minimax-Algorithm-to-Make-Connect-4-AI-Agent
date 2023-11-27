@@ -253,6 +253,8 @@ def minimax_alpha_beta(state, k, IsMaximizing, mpMax, mpMin, alpha=float('-inf')
 
 
 # Draw the Connect-4 board
+
+# Draw the Connect-4 board
 def draw_board(board):
     for c in range(COLUMNS):
         for r in range(ROWS):
@@ -295,70 +297,79 @@ def text_objects(text, font):
     return textSurface, textSurface.get_rect()
 
 
-def open_new_window(connect4_snapshot, current_board):
-    new_window = pygame.display.set_mode((WIDTH, HEIGHT))  # Size of the new window
-    new_window.fill((255, 255, 255))  # White background for the new window
+def open_new_window(connect4_snapshot, current_board, depth):
+    new_window = pygame.display.set_mode((WIDTH, HEIGHT))
+    new_window.fill((255, 255, 255))
 
-    # The parent node position (centered at the top of the window)
-    parent_pos = (WIDTH // 2 - 50, 50)  # Adjust Y offset as needed for your layout
+    # Define the initial parent position
+    parent_pos = (WIDTH // 2 - 50, 50)
 
-    # Calculate children positions below the parent
-    children_positions = [(i * (WIDTH // 7) + (WIDTH // 14) - 50, 200) for i in range(7)]  # Adjust Y offset as needed
-
-    # Draw the parent node
-    parent_surface = visualize_board(current_board, 100, 100)
-    new_window.blit(parent_surface, parent_pos)
-
-    # Store rects and corresponding boards for clickable areas
-    clickable_areas = []
-
-    # Draw the first layer of children and store their rects
-    child_boards = getChildren(current_board, True)
-    for i, child_board in enumerate(child_boards):
-        child_surface = visualize_board(child_board, 100, 100)
-        pos = children_positions[i]
-        new_window.blit(child_surface, pos)
-        clickable_areas.append((pygame.Rect(pos[0], pos[1], 100, 100), child_board))
-
-    pygame.display.update()
+    # Show the initial children of the root node
+    clickable_areas = show_children_of_node(new_window, current_board, parent_pos, depth, [])
 
     running = True
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                running = False
+                running = False  # This will close the tree window and return control to the main game loop
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_pos = event.pos
-                for rect, child_board in clickable_areas:
+                # Check if we clicked on any child node
+                for rect, child_board, remaining_depth in clickable_areas:
                     if rect.collidepoint(mouse_pos):
-                        # When a child node is clicked, show its children
-                        show_children_of_node(new_window, child_board, rect)
+                        # Make the clicked node the new parent and show its children
+                        clickable_areas = show_children_of_node(new_window, child_board, (rect.x, 50), remaining_depth, clickable_areas)
+                        break
 
-        pygame.display.update()
+    # Do not call pygame.quit() here, as we want to return to the main game
 
 
-def show_children_of_node(window, board, parent_rect):
-    # Clear the window
-    window.fill((255, 255, 255))
 
-    # Redraw the parent node at the top
-    parent_surface = visualize_board(board, parent_rect.width, parent_rect.height)
-    # Use the same X coordinate but place it at the top
-    parent_new_pos = (parent_rect.x, 50)  # Y offset to place the parent at the top
-    window.blit(parent_surface, parent_new_pos)
+def show_children_of_node(window, board, parent_pos, depth, clickable_areas):
+    if depth == 0:
+        return clickable_areas
 
-    # Calculate new positions for children based on the new parent position
-    children_positions = [(i * (WIDTH // 7) + (WIDTH // 14) - 50, parent_new_pos[1] + 150) for i in range(7)]
+    window.fill((255, 255, 255))  # Clear the window for the new tree view
 
-    # Draw the children of the new parent
-    child_boards = getChildren(board, True)
+    # Count the number of pieces for each player
+    player1_count = sum(row.count('1') for row in board)
+    player2_count = sum(row.count('2') for row in board)
+
+    # Determine whose turn it is
+    is_ai_turn = player1_count > player2_count
+
+    # Draw the new parent node and its score
+    parent_surface = visualize_board(board, 100, 100)
+    window.blit(parent_surface, parent_pos)
+
+    parent_score = Evaluate(board)  # Calculate the score for the parent node
+    display_score(window, parent_score, (parent_pos[0], parent_pos[1] + 110))  # Display score below the parent node
+
+    # Calculate new positions for the children
+    children_positions = [(i * (WIDTH // 7) + (WIDTH // 14) - 50, parent_pos[1] + 150) for i in range(7)]
+
+    # Draw and store the clickable areas for the children
+    new_clickable_areas = []
+    child_boards = getChildren(board, is_ai_turn)
     for i, child_board in enumerate(child_boards):
         child_surface = visualize_board(child_board, 100, 100)
         pos = children_positions[i]
         window.blit(child_surface, pos)
+        clickable_rect = pygame.Rect(pos[0], pos[1], 100, 100)
+        new_clickable_areas.append((clickable_rect, child_board, depth - 1))
 
-    # Update the display
+        child_score = Evaluate(child_board)  # Calculate the score for each child node
+        display_score(window, child_score, (pos[0], pos[1] + 110))  # Display score below each child node
+
     pygame.display.update()
+    return new_clickable_areas
+
+
+def display_score(window, score, position):
+    font = pygame.font.SysFont("freesansbold.ttf", 20)
+    score_text = font.render(str(score), True, (0, 0, 0))
+    window.blit(score_text, position)
+
 
 
 def visualize_board(board, width, height):
@@ -396,9 +407,6 @@ def visualize_board(board, width, height):
 
     return surface
 
-
-
-# Main game loop
 def get_user_input():
     root = tk.Tk()
     root.withdraw()  # Hide the main tkinter window
@@ -412,7 +420,9 @@ def game_loop():
     board = [['0' for _ in range(COLUMNS)] for _ in range(ROWS)]
     button_x, button_y = (WIDTH - button_width) / 2, HEIGHT - button_height - 10
 
-    get_user_input()
+    # Get user input for depth and pruning using Tkinter dialogs
+    depth, use_pruning = get_user_input()
+
     while True:
         turn = 0
         for event in pygame.event.get():
@@ -424,7 +434,7 @@ def game_loop():
                 if button_x + button_width > event.pos[0] > button_x and button_y + button_height > event.pos[1] > button_y:
                     # Capture Connect 4 window snapshot before opening the new window
                     connect4_snapshot = pygame.display.get_surface().copy()
-                    open_new_window(connect4_snapshot, board)
+                    open_new_window(connect4_snapshot, board, depth)
                 elif turn == 0:
                     posx = event.pos[0]
                     col = posx // SQUARE_SIZE
@@ -439,7 +449,7 @@ def game_loop():
 
         if turn == 1:
             t1 = time.time()
-            col = make_agent_move(board, 3, False)
+            col = make_agent_move(board, depth, use_pruning)
             board = makeMove(board, col, '2')
             t2 = time.time()
             print("time = ", t2 - t1)
@@ -451,8 +461,6 @@ def game_loop():
             pygame.display.update()
 
     pygame.quit()
-
-
 
 # Initialize Pygame
 pygame.init()
