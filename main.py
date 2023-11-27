@@ -274,18 +274,147 @@ def draw_board(board):
     pygame.display.update()
 
 
+def draw_button(screen, text, x, y, width, height, inactive_color, active_color):
+    mouse = pygame.mouse.get_pos()
+    click = pygame.mouse.get_pressed()
+
+    if x + width > mouse[0] > x and y + height > mouse[1] > y:
+        pygame.draw.rect(screen, active_color, (x, y, width, height))
+    else:
+        pygame.draw.rect(screen, inactive_color, (x, y, width, height))
+
+    smallText = pygame.font.SysFont("freesansbold.ttf", 20)
+    textSurf, textRect = text_objects(text, smallText)
+    textRect.center = ((x + (width / 2)), (y + (height / 2)))
+    screen.blit(textSurf, textRect)
+
+
+def text_objects(text, font):
+    textSurface = font.render(text, True, (0, 0, 0))
+    return textSurface, textSurface.get_rect()
+
+
+def open_new_window(connect4_snapshot, current_board):
+    new_window = pygame.display.set_mode((WIDTH, HEIGHT))  # Size of the new window
+    new_window.fill((255, 255, 255))  # White background for the new window
+
+    # The parent node position (centered at the top of the window)
+    parent_pos = (WIDTH // 2 - 50, 50)  # Adjust Y offset as needed for your layout
+
+    # Calculate children positions below the parent
+    children_positions = [(i * (WIDTH // 7) + (WIDTH // 14) - 50, 200) for i in range(7)]  # Adjust Y offset as needed
+
+    # Draw the parent node
+    parent_surface = visualize_board(current_board, 100, 100)
+    new_window.blit(parent_surface, parent_pos)
+
+    # Store rects and corresponding boards for clickable areas
+    clickable_areas = []
+
+    # Draw the first layer of children and store their rects
+    child_boards = getChildren(current_board, True)
+    for i, child_board in enumerate(child_boards):
+        child_surface = visualize_board(child_board, 100, 100)
+        pos = children_positions[i]
+        new_window.blit(child_surface, pos)
+        clickable_areas.append((pygame.Rect(pos[0], pos[1], 100, 100), child_board))
+
+    pygame.display.update()
+
+    running = True
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                mouse_pos = event.pos
+                for rect, child_board in clickable_areas:
+                    if rect.collidepoint(mouse_pos):
+                        # When a child node is clicked, show its children
+                        show_children_of_node(new_window, child_board, rect)
+
+        pygame.display.update()
+
+
+def show_children_of_node(window, board, parent_rect):
+    # Clear the window
+    window.fill((255, 255, 255))
+
+    # Redraw the parent node at the top
+    parent_surface = visualize_board(board, parent_rect.width, parent_rect.height)
+    # Use the same X coordinate but place it at the top
+    parent_new_pos = (parent_rect.x, 50)  # Y offset to place the parent at the top
+    window.blit(parent_surface, parent_new_pos)
+
+    # Calculate new positions for children based on the new parent position
+    children_positions = [(i * (WIDTH // 7) + (WIDTH // 14) - 50, parent_new_pos[1] + 150) for i in range(7)]
+
+    # Draw the children of the new parent
+    child_boards = getChildren(board, True)
+    for i, child_board in enumerate(child_boards):
+        child_surface = visualize_board(child_board, 100, 100)
+        pos = children_positions[i]
+        window.blit(child_surface, pos)
+
+    # Update the display
+    pygame.display.update()
+
+
+def visualize_board(board, width, height):
+    rows = len(board)
+    cols = len(board[0]) if rows > 0 else 0
+    square_size = min(width // cols, height // rows)
+
+    # If the radius is too small, pieces will not be visible, so ensure a minimum size
+    min_radius = 5
+    radius = max(square_size // 2 - 5, min_radius)
+
+    # Create a new surface for the child board with a white background
+    surface = pygame.Surface((width, height))
+    surface.fill((255, 255, 255))
+
+    # Adjust the drawing for smaller sizes
+    for c in range(cols):
+        for r in range(rows):
+            # Calculate the position and size of each grid cell and piece
+            cell_x = c * square_size
+            # Start drawing from the bottom of the surface.
+            # We subtract from 'rows' instead of 'height' to flip the y-axis.
+            cell_y = (rows - 1 - r) * square_size
+            piece_x = cell_x + square_size // 2
+            piece_y = cell_y + square_size // 2
+
+            # Draw the grid cell
+            pygame.draw.rect(surface, (0, 0, 255), (cell_x, cell_y, square_size, square_size))
+
+            # Draw the piece if there is one
+            if board[r][c] == '1':
+                pygame.draw.circle(surface, RED, (piece_x, piece_y), radius)
+            elif board[r][c] == '2':
+                pygame.draw.circle(surface, YELLOW, (piece_x, piece_y), radius)
+
+    return surface
+
+
+
 # Main game loop
 def game_loop():
     board = [['0' for _ in range(COLUMNS)] for _ in range(ROWS)]
+    button_x, button_y = (WIDTH - button_width) / 2, HEIGHT - button_height - 10
 
     while True:
         turn = 0
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
+                pygame.quit()
                 return
 
             if event.type == pygame.MOUSEBUTTONDOWN:
-                if turn == 0:
+                if button_x + button_width > event.pos[0] > button_x and button_y + button_height > event.pos[1] > button_y:
+                    # Capture Connect 4 window snapshot before opening the new window
+                    connect4_snapshot = pygame.display.get_surface().copy()
+                    open_new_window(connect4_snapshot, board)
+                elif turn == 0:
                     posx = event.pos[0]
                     col = posx // SQUARE_SIZE
                     if isValidMove(board, col):
@@ -294,10 +423,12 @@ def game_loop():
                         turn %= 2
 
         draw_board(board)
+        draw_button(screen, "New Window", button_x, button_y, button_width, button_height, (100, 200, 100), (100, 255, 100))
         pygame.display.update()
+
         if turn == 1:
             t1 = time.time()
-            col = make_agent_move(board, 10,True)
+            col = make_agent_move(board, 3, False)
             board = makeMove(board, col, '2')
             t2 = time.time()
             print("time = ", t2 - t1)
@@ -311,11 +442,12 @@ def game_loop():
     pygame.quit()
 
 
+
 # Initialize Pygame
 pygame.init()
 
 # Constants
-WIDTH, HEIGHT = 700, 600
+WIDTH, HEIGHT = 900, 800
 ROWS, COLUMNS = 6, 7
 SQUARE_SIZE = WIDTH // COLUMNS
 RADIUS = SQUARE_SIZE // 2 - 5
@@ -327,27 +459,7 @@ BLUE = (0, 0, 255)
 # Set up the screen
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Connect-4")
+button_width, button_height = 100, 50
 
 game_loop()
 
-# board = [['1','1','1','1','1','1','1'],
-#          ['1','1','1','1','1','1','1'],
-#          ['1','1','1','1','1','1','1'],
-#          ['1','1','1','1','1','1','1'],
-#          ['1','1','1','1','1','1','1'],
-#          ['1','1','1','1','1','1','1'],
-# ]
-
-# print(count_connected_fours(board,'1'))
-# x = {}
-# x[convert_to_tuple(board)] = 5
-# print((1,2) in x)
-# print(minimax(board,1,True))
-#
-# print(count_potential_fours(board,'2'))
-# print(isTerminal(board))
-
-# print(minimax(board,6,True))
-# print(count_connected_fours(board,'1'))
-# print(center_column_control(board,'2'))
-# print((getChildren(board)[6]))
