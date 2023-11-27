@@ -197,6 +197,7 @@ def minimax(state, k, IsMaximizing, mpMax, mpMin):
     if IsMaximizing:
         if tupleState in mpMax:
             node.value = mpMax[tupleState]
+            print(tupleState)
             return mpMax[tupleState], node
 
         bestValue = float('-inf')
@@ -214,6 +215,7 @@ def minimax(state, k, IsMaximizing, mpMax, mpMin):
     else:
         if tupleState in mpMin:
             node.value = mpMin[tupleState]
+            print(tupleState)
             return mpMin[tupleState], node
 
         bestValue = float('inf')
@@ -359,12 +361,19 @@ def draw_tree(canvas, node, x, y, node_positions, level_distance=100, sibling_di
             draw_tree(canvas, child, child_x, child_y, node_positions, level_distance, sibling_distance, cell_size, spacing_factor)
 
 
+
 def on_canvas_click(event, canvas, root, node_positions):
     for node, (bbox, children_displayed) in node_positions.items():
         if bbox[0] <= event.x <= bbox[2] and bbox[1] <= event.y <= bbox[3]:
-            node_positions[node] = (bbox, not children_displayed)
-            redraw_tree(canvas, root, node_positions)
+            # Check if the node has children
+            if not node.children:  # If the node has no children
+                print("Node has no children")  # Print a message to the console
+            else:
+                # Toggle the display of children
+                node_positions[node] = (bbox, not children_displayed)
+                redraw_tree(canvas, root, node_positions)
             break
+
 
 def redraw_tree(canvas, root, node_positions):
     canvas.delete("all")
