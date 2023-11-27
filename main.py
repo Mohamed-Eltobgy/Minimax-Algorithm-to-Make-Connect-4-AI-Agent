@@ -336,7 +336,11 @@ def draw_node(canvas, node, x, y, cell_size=10):  # Reduced cell_size
 
     return start_x, start_y, start_x + grid_width, start_y + grid_height + 10
 
-def draw_tree(canvas, node, x, y, node_positions, level_distance=100, sibling_distance=100, cell_size=10):
+import tkinter as tk
+
+# Existing draw_node function remains unchanged
+
+def draw_tree(canvas, node, x, y, node_positions, level_distance=100, sibling_distance=80, cell_size=10, spacing_factor=0.9):
     if not node:
         return
 
@@ -344,12 +348,16 @@ def draw_tree(canvas, node, x, y, node_positions, level_distance=100, sibling_di
     node_positions[node] = (node_bbox, node_positions.get(node, (None, False))[1])
 
     if node_positions[node][1]:
-        child_x = x - (len(node.children) - 1) * sibling_distance / 2
-        for child in node.children:
+        num_children = len(node.children)
+        start_x = x - (num_children - 1) * sibling_distance * spacing_factor / 2
+
+        for idx, child in enumerate(node.children):
+            child_x = start_x + idx * sibling_distance * spacing_factor
             child_y = y + level_distance
+
             canvas.create_line(x, y, child_x, child_y)
-            draw_tree(canvas, child, child_x, child_y, node_positions, level_distance, sibling_distance, cell_size)
-            child_x += sibling_distance
+            draw_tree(canvas, child, child_x, child_y, node_positions, level_distance, sibling_distance, cell_size, spacing_factor)
+
 
 def on_canvas_click(event, canvas, root, node_positions):
     for node, (bbox, children_displayed) in node_positions.items():
@@ -360,19 +368,21 @@ def on_canvas_click(event, canvas, root, node_positions):
 
 def redraw_tree(canvas, root, node_positions):
     canvas.delete("all")
-    initial_x = canvas.winfo_reqwidth()  *3.5
+    initial_x = canvas.winfo_reqwidth()  *2.6
     draw_tree(canvas, root, initial_x, 50, node_positions)
 
 def visualize_tree(root):
     master = tk.Tk()
     master.title("Connect-4 Tree Visualization")
 
+
     canvas = tk.Canvas(master)
-    canvas.pack(expand=tk.YES, fill=tk.BOTH)  # Make the canvas expand to fill the window
+    canvas.pack(expand=tk.YES, fill=tk.BOTH)  # Make the canvas expand to fill the window3
+
 
     node_positions = {}
 
-    initial_x = canvas.winfo_reqwidth() *3.5
+    initial_x = canvas.winfo_reqwidth() *2.6
     draw_tree(canvas, root, initial_x, 50, node_positions)
 
     canvas.bind("<Button-1>", lambda event: on_canvas_click(event, canvas, root, node_positions))
