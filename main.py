@@ -1,10 +1,20 @@
 import time
-import tkinter as tk
-from tkinter import simpledialog
 import pygame
+import tkinter as tk
+import copy
 
 cols = [3,4,2,1,5,0,6]
 
+
+
+
+
+
+class Node:
+    def __init__(self, state, value=None):
+        self.state = state
+        self.value = value
+        self.children = []
 def convert_to_tuple(array_2d):
     return tuple(tuple(row) for row in array_2d)
 
@@ -146,9 +156,8 @@ def makeMove(board, col, player):
 def make_agent_move(board, depth, alpha_beta):
     best_score = float('-inf')
     best_move = None
-    mpMax = {}
-    mpMin = {}
-
+    root = Node(copy.deepcopy(board))
+    #print(board)
 
     for col in cols:
         if isValidMove(board, col):
@@ -160,101 +169,267 @@ def make_agent_move(board, depth, alpha_beta):
             temp_board = makeMove(temp_board, col, '2')
 
             if not alpha_beta:
-                score = minimax(temp_board, depth - 1, False, mpMax, mpMin)
+                score, subtree = minimax(temp_board, depth - 1, False, {}, {})
             else:
-                score = minimax_alpha_beta(temp_board, depth - 1, False, mpMax, mpMin, best_score, float('inf'))
-                mpMax[tuple] = score
+                score, subtree = minimax_alpha_beta(temp_board, depth - 1, False, {}, {}, best_score, float('inf'))
+
+            root.children.append(subtree)  # Add the subtree as a child of the root
 
             if score > best_score:
                 best_score = score
                 best_move = col
 
-
-    print("score = ", best_score)
-    return best_move
+    print("Best score = ", best_score)
+    return best_move, root  # Return the best move and the entire decision tree
 
 
 def minimax(state, k, IsMaximizing, mpMax, mpMin):
-    if k < 0 or isTerminal(state):
+    node = Node(state)
+
+    if k <= 0 or isTerminal(state):
         score = Evaluate(state)
-        return score
+        node.value = score
+        return score, node
 
     tupleState = convert_to_tuple(state)
 
-    if (IsMaximizing):
+    if IsMaximizing:
         if tupleState in mpMax:
-            return mpMax[tupleState]
+            node.value = mpMax[tupleState]
+            return mpMax[tupleState], node
 
         bestValue = float('-inf')
         children = getChildren(state, IsMaximizing)
 
         for child in children:
-            value = minimax(child, k - 1, False, mpMax, mpMin)
+            value, childNode = minimax(child, k - 1, False, mpMax, mpMin)
+            node.children.append(childNode)
             bestValue = max(value, bestValue)
 
+        node.value = bestValue
         mpMax[tupleState] = bestValue
-        return bestValue
+        return bestValue, node
 
     else:
         if tupleState in mpMin:
-            return mpMin[tupleState]
+            node.value = mpMin[tupleState]
+            return mpMin[tupleState], node
+
         bestValue = float('inf')
         children = getChildren(state, IsMaximizing)
+
         for child in children:
-            value = minimax(child, k - 1, True, mpMax, mpMin)
+            value, childNode = minimax(child, k - 1, True, mpMax, mpMin)
+            node.children.append(childNode)
             bestValue = min(value, bestValue)
 
+        node.value = bestValue
         mpMin[tupleState] = bestValue
-        return bestValue
+        return bestValue, node
 
 
 def minimax_alpha_beta(state, k, IsMaximizing, mpMax, mpMin, alpha=float('-inf'), beta=float('inf')):
-    if k < 0 or isTerminal(state):
+    node = Node(state)
+
+    if k <= 0 or isTerminal(state):
         score = Evaluate(state)
-        return score
+        node.value = score
+        return score, node
 
     tupleState = convert_to_tuple_alpha_beta(state, alpha, beta)
 
     if IsMaximizing:
         if tupleState in mpMax:
-
-            return mpMax[tupleState]
+            node.value = mpMax[tupleState]
+            return mpMax[tupleState], node
 
         bestValue = float('-inf')
         children = getChildren(state, IsMaximizing)
 
         for child in children:
-            value = minimax_alpha_beta(child, k - 1, False, mpMax, mpMin, alpha, beta)
+            value, childNode = minimax_alpha_beta(child, k - 1, False, mpMax, mpMin, alpha, beta)
             bestValue = max(value, bestValue)
             alpha = max(alpha, bestValue)
+            node.children.append(childNode)
 
             if beta <= alpha:
                 break
 
+        node.value = bestValue
         mpMax[tupleState] = bestValue
-        return bestValue
+        return bestValue, node
 
     else:
         if tupleState in mpMin:
-            return mpMin[tupleState]
+            node.value = mpMin[tupleState]
+            return mpMin[tupleState], node
 
         bestValue = float('inf')
         children = getChildren(state, IsMaximizing)
+
         for child in children:
-            value = minimax_alpha_beta(child, k - 1, True, mpMax, mpMin, alpha, beta)
+            value, childNode = minimax_alpha_beta(child, k - 1, True, mpMax, mpMin, alpha, beta)
             bestValue = min(value, bestValue)
             beta = min(beta, bestValue)
+            node.children.append(childNode)
 
             if beta <= alpha:
                 break
 
+        node.value = bestValue
         mpMin[tupleState] = bestValue
-        return bestValue
+        return bestValue, node
 
+################################ 1st window
+import PySimpleGUI as sg
+
+def Get_parameters_window():
+    layout = [
+        [sg.Text('Depth:'), sg.InputText(key='depth')],
+        [sg.Checkbox('Alpha-Beta Pruning', key='alpha_beta'), sg.Checkbox('Show Tree', key='show_tree')],
+        [sg.Button('OK')]
+    ]
+
+    window = sg.Window('Parameters', layout)
+
+    while True:
+        event, values = window.read()
+
+        if event == sg.WINDOW_CLOSED:
+            return None, None, None
+
+        if event == 'OK':
+            depth = int(values['depth']) if values['depth'].isdigit() else 0
+            alpha_beta = values['alpha_beta']
+            show_tree = values['show_tree']
+            window.close()
+            return depth, alpha_beta, show_tree
+
+
+
+##########
+
+##########    TREE
+def draw_node(canvas, node, x, y, cell_size=15):
+    # Decrease cell_size to make the boards smaller
+    columns = len(node.state[0])
+    rows = len(node.state)
+    grid_width = columns * cell_size
+    grid_height = rows * cell_size
+
+    # Starting coordinates for the grid to be centered on (x, y)
+    start_x = x - grid_width // 2
+    start_y = y - grid_height // 2
+
+    # Draw the Connect-4 state inside the node
+    for i in range(rows):
+        for j in range(columns):
+            cell_x = start_x + j * cell_size
+            cell_y = start_y + (rows - 1 - i) * cell_size
+            color = "white"  # Default color for empty cells
+            if node.state[i][j] == '1':
+                color = "red"
+            elif node.state[i][j] == '2':
+                color = "yellow"
+            # Draw the cell rectangle with the appropriate color
+            canvas.create_rectangle(cell_x, cell_y, cell_x + cell_size, cell_y + cell_size, fill=color, outline='black')
+
+    # Print the score below the board
+    score_text = f"Score: {node.value}" if node.value is not None else "Score: N/A"
+    canvas.create_text(x, start_y + grid_height + cell_size, text=score_text, font=('Helvetica', '10'), fill='black')
+
+    return grid_width, grid_height + cell_size  # Include the space for the score in the total height
+
+
+
+
+def draw_tree(canvas, node, x, y, level_distance=200, sibling_distance=150, cell_size=20):
+    if not node:
+        return
+
+    # Calculate the width and height of the node's grid to adjust spacing
+    columns = len(node.state[0])
+    rows = len(node.state)
+    node_width = columns * cell_size
+    node_height = rows * cell_size
+
+    # Draw the current node
+    draw_node(canvas, node, x, y, cell_size)
+
+    # Increase the horizontal space for child nodes based on the number of children
+    child_x = x - (len(node.children) - 1) * sibling_distance / 2
+    for child in node.children:
+        child_y = y + node_height + level_distance  # Increase the vertical space between levels
+        # Draw line to child
+        canvas.create_line(x, y + node_height / 2, child_x, child_y - node_height / 2)
+        # Draw child
+        draw_tree(canvas, child, child_x, child_y, level_distance, sibling_distance, cell_size)
+        child_x += sibling_distance
+
+
+
+def visualize_tree(root):
+    master = tk.Tk()
+    master.title("Connect-4 Tree Visualization")
+
+    # Increase the window size to better accommodate the tree
+    window_width = 1600
+    window_height = 1200
+    canvas = tk.Canvas(master, width=window_width, height=window_height)
+    canvas.pack()
+
+    # Start drawing the tree from the middle of the canvas
+    initial_x = window_width // 2
+    initial_y = 50  # Starting a bit down from the top
+    draw_tree(canvas, root, initial_x, initial_y)
+
+    master.mainloop()
+
+
+###########
 
 # Draw the Connect-4 board
+def game_loop():
+    board = [['0' for _ in range(COLUMNS)] for _ in range(ROWS)]
 
-# Draw the Connect-4 board
+    depth, alpha_beta, show_tree = Get_parameters_window()
+
+
+    while True:
+        turn = 0
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return
+
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if turn == 0:
+                    posx = event.pos[0]
+                    col = posx // SQUARE_SIZE
+                    if isValidMove(board, col):
+                        board = makeMove(board, col, '1')
+                        turn += 1
+                        turn %= 2
+
+        draw_board(board)
+        pygame.display.update()
+        if turn == 1:
+            t1 = time.time()
+            col,root = make_agent_move(board, depth,alpha_beta)
+            board = makeMove(board, col, '2')
+            t2 = time.time()
+
+            print("time = ", t2 - t1)
+            draw_board(board)
+            turn += 1
+            turn %= 2
+            print("Player count = ", count_connected_fours(board, '1'))
+            print("AI count = ", count_connected_fours(board, '2'))
+            pygame.display.update()
+            if show_tree:
+                visualize_tree(root)
+
+    pygame.quit()
+
 def draw_board(board):
     for c in range(COLUMNS):
         for r in range(ROWS):
@@ -277,196 +452,14 @@ def draw_board(board):
     pygame.display.update()
 
 
-def draw_button(screen, text, x, y, width, height, inactive_color, active_color):
-    mouse = pygame.mouse.get_pos()
-    click = pygame.mouse.get_pressed()
+# Main game loop
 
-    if x + width > mouse[0] > x and y + height > mouse[1] > y:
-        pygame.draw.rect(screen, active_color, (x, y, width, height))
-    else:
-        pygame.draw.rect(screen, inactive_color, (x, y, width, height))
-
-    smallText = pygame.font.SysFont("freesansbold.ttf", 20)
-    textSurf, textRect = text_objects(text, smallText)
-    textRect.center = ((x + (width / 2)), (y + (height / 2)))
-    screen.blit(textSurf, textRect)
-
-
-def text_objects(text, font):
-    textSurface = font.render(text, True, (0, 0, 0))
-    return textSurface, textSurface.get_rect()
-
-
-def open_new_window(connect4_snapshot, current_board, depth):
-    new_window = pygame.display.set_mode((WIDTH, HEIGHT))
-    new_window.fill((255, 255, 255))
-
-    # Define the initial parent position
-    parent_pos = (WIDTH // 2 - 50, 50)
-
-    # Show the initial children of the root node
-    clickable_areas = show_children_of_node(new_window, current_board, parent_pos, depth, [])
-
-    running = True
-    while running:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False  # This will close the tree window and return control to the main game loop
-            elif event.type == pygame.MOUSEBUTTONDOWN:
-                mouse_pos = event.pos
-                # Check if we clicked on any child node
-                for rect, child_board, remaining_depth in clickable_areas:
-                    if rect.collidepoint(mouse_pos):
-                        # Make the clicked node the new parent and show its children
-                        clickable_areas = show_children_of_node(new_window, child_board, (rect.x, 50), remaining_depth, clickable_areas)
-                        break
-
-    # Do not call pygame.quit() here, as we want to return to the main game
-
-
-
-def show_children_of_node(window, board, parent_pos, depth, clickable_areas):
-    if depth == 0:
-        return clickable_areas
-
-    window.fill((255, 255, 255))  # Clear the window for the new tree view
-
-    # Count the number of pieces for each player
-    player1_count = sum(row.count('1') for row in board)
-    player2_count = sum(row.count('2') for row in board)
-
-    # Determine whose turn it is
-    is_ai_turn = player1_count > player2_count
-
-    # Draw the new parent node and its score
-    parent_surface = visualize_board(board, 100, 100)
-    window.blit(parent_surface, parent_pos)
-
-    parent_score = Evaluate(board)  # Calculate the score for the parent node
-    display_score(window, parent_score, (parent_pos[0], parent_pos[1] + 110))  # Display score below the parent node
-
-    # Calculate new positions for the children
-    children_positions = [(i * (WIDTH // 7) + (WIDTH // 14) - 50, parent_pos[1] + 150) for i in range(7)]
-
-    # Draw and store the clickable areas for the children
-    new_clickable_areas = []
-    child_boards = getChildren(board, is_ai_turn)
-    for i, child_board in enumerate(child_boards):
-        child_surface = visualize_board(child_board, 100, 100)
-        pos = children_positions[i]
-        window.blit(child_surface, pos)
-        clickable_rect = pygame.Rect(pos[0], pos[1], 100, 100)
-        new_clickable_areas.append((clickable_rect, child_board, depth - 1))
-
-        child_score = Evaluate(child_board)  # Calculate the score for each child node
-        display_score(window, child_score, (pos[0], pos[1] + 110))  # Display score below each child node
-
-    pygame.display.update()
-    return new_clickable_areas
-
-
-def display_score(window, score, position):
-    font = pygame.font.SysFont("freesansbold.ttf", 20)
-    score_text = font.render(str(score), True, (0, 0, 0))
-    window.blit(score_text, position)
-
-
-
-def visualize_board(board, width, height):
-    rows = len(board)
-    cols = len(board[0]) if rows > 0 else 0
-    square_size = min(width // cols, height // rows)
-
-    # If the radius is too small, pieces will not be visible, so ensure a minimum size
-    min_radius = 5
-    radius = max(square_size // 2 - 5, min_radius)
-
-    # Create a new surface for the child board with a white background
-    surface = pygame.Surface((width, height))
-    surface.fill((255, 255, 255))
-
-    # Adjust the drawing for smaller sizes
-    for c in range(cols):
-        for r in range(rows):
-            # Calculate the position and size of each grid cell and piece
-            cell_x = c * square_size
-            # Start drawing from the bottom of the surface.
-            # We subtract from 'rows' instead of 'height' to flip the y-axis.
-            cell_y = (rows - 1 - r) * square_size
-            piece_x = cell_x + square_size // 2
-            piece_y = cell_y + square_size // 2
-
-            # Draw the grid cell
-            pygame.draw.rect(surface, (0, 0, 255), (cell_x, cell_y, square_size, square_size))
-
-            # Draw the piece if there is one
-            if board[r][c] == '1':
-                pygame.draw.circle(surface, RED, (piece_x, piece_y), radius)
-            elif board[r][c] == '2':
-                pygame.draw.circle(surface, YELLOW, (piece_x, piece_y), radius)
-
-    return surface
-
-def get_user_input():
-    root = tk.Tk()
-    root.withdraw()  # Hide the main tkinter window
-
-    depth = simpledialog.askinteger("Depth", "Enter the depth for AI search:")
-    use_pruning = simpledialog.askstring("Pruning", "Use pruning? (yes/no): ").lower() == 'yes'
-
-    return depth, use_pruning
-
-def game_loop():
-    board = [['0' for _ in range(COLUMNS)] for _ in range(ROWS)]
-    button_x, button_y = (WIDTH - button_width) / 2, HEIGHT - button_height - 10
-
-    # Get user input for depth and pruning using Tkinter dialogs
-    depth, use_pruning = get_user_input()
-
-    while True:
-        turn = 0
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                return
-
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                if button_x + button_width > event.pos[0] > button_x and button_y + button_height > event.pos[1] > button_y:
-                    # Capture Connect 4 window snapshot before opening the new window
-                    connect4_snapshot = pygame.display.get_surface().copy()
-                    open_new_window(connect4_snapshot, board, depth)
-                elif turn == 0:
-                    posx = event.pos[0]
-                    col = posx // SQUARE_SIZE
-                    if isValidMove(board, col):
-                        board = makeMove(board, col, '1')
-                        turn += 1
-                        turn %= 2
-
-        draw_board(board)
-        draw_button(screen, "New Window", button_x, button_y, button_width, button_height, (100, 200, 100), (100, 255, 100))
-        pygame.display.update()
-
-        if turn == 1:
-            t1 = time.time()
-            col = make_agent_move(board, depth, use_pruning)
-            board = makeMove(board, col, '2')
-            t2 = time.time()
-            print("time = ", t2 - t1)
-            turn += 1
-            turn %= 2
-            print("Player count = ", count_connected_fours(board, '1'))
-            print("AI count = ", count_connected_fours(board, '2'))
-            draw_board(board)
-            pygame.display.update()
-
-    pygame.quit()
 
 # Initialize Pygame
 pygame.init()
 
 # Constants
-WIDTH, HEIGHT = 900, 800
+WIDTH, HEIGHT = 700, 600
 ROWS, COLUMNS = 6, 7
 SQUARE_SIZE = WIDTH // COLUMNS
 RADIUS = SQUARE_SIZE // 2 - 5
@@ -478,7 +471,30 @@ BLUE = (0, 0, 255)
 # Set up the screen
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Connect-4")
-button_width, button_height = 100, 50
 
 game_loop()
 
+
+
+
+# board = [['1','1','1','1','1','1','1'],
+#          ['1','1','1','1','1','1','1'],
+#          ['1','1','1','1','1','1','1'],
+#          ['1','1','1','1','1','1','1'],
+#          ['1','1','1','1','1','1','1'],
+#          ['1','1','1','1','1','1','1'],
+# ]
+
+# print(count_connected_fours(board,'1'))
+# x = {}
+# x[convert_to_tuple(board)] = 5
+# print((1,2) in x)
+# print(minimax(board,1,True))
+#
+# print(count_potential_fours(board,'2'))
+# print(isTerminal(board))
+
+# print(minimax(board,6,True))
+# print(count_connected_fours(board,'1'))
+# print(center_column_control(board,'2'))
+# print((getChildren(board)[6]))
